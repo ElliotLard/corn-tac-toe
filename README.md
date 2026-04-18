@@ -63,12 +63,13 @@ The board uses sensors to detect hits and LED strips to display game state in re
 - 📱 Score tracking / display
 - 🛠 Adjustable game modes
 
-## 📜 License
-
-- This project is licensed under the Apache License.
-
 ## 🙌 Team
 - Elliot Lard
 - Baz McIntyre
 - Landon Aucoin
 - James Cowan
+
+## 📜 License
+
+- This project is licensed under the Apache-2.0 license.
+
