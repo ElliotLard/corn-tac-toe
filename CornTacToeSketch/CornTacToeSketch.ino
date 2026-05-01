@@ -27,6 +27,8 @@ int ledMap[NUM_LEDS] = {
 #define MISSED_SHOT 3
 #define WINNING 4
 #define NEW_ROUND 5
+#define CLEAR_BOARD 6
+#define TAKE_5 7
 
 #define VIBRATION_SENSOR 7
 
@@ -40,16 +42,17 @@ CRGB NEUTRAL_COLOR = CRGB::White;
 
 unsigned long currentTime;
 
-#define PLAY_BLINK_DELAY 400
+#define PLAY_BLINK_DELAY 600
 unsigned long playBlinkTimer;
 CRGB playBlinkColor = NEUTRAL_COLOR;
 
 #define SHOT_DETECT_DELAY 600
 unsigned long shotDetectTimer;
 
-#define MADE_SHOT_DELAY 800
+#define MADE_SHOT_DELAY 1000
 #define MADE_SHOT_BLINK_DELAY 100
 #define INVALID 255
+
 byte winningLine[] = { INVALID, INVALID, INVALID };
 byte madeShotHole = INVALID;
 unsigned long madeShotTimer;
@@ -70,17 +73,20 @@ unsigned long winningBlinkTimer;
 unsigned long winningStageTimer;
 CRGB winningBlinkColor = NEUTRAL_COLOR;
 
-#define TURN_DELAY 6000
+#define TURN_DELAY 8000
 #define ROUND_LENGTH 8
 unsigned long turnTimer;
 byte turn = ROUND_LENGTH;
 
 #define NEW_ROUND_DELAY 20000
 #define NEW_ROUND_STAGES 9
-#define NEW_ROUND_STAGE_DELAY (NEW_ROUND_DELAY / (NEW_ROUND_STAGES*3))
+#define NEW_ROUND_STAGE_DELAY (NEW_ROUND_DELAY / (NEW_ROUND_STAGES * 3))
 byte newRoundBlinkStage = 0;
 unsigned long newRoundTimer;
 unsigned long newRoundBlinkTimer;
+
+#define TAKE_5_DELAY 10000
+unsigned long take5Timer;
 
 int irReceivers[NUM_SENSORS] = {
   IR_RECEIVER0,
@@ -106,7 +112,7 @@ void setup() {
     pinMode(irReceivers[i], INPUT);
   }
   pinMode(VIBRATION_SENSOR, INPUT);
-  if(SOUNDS_ON){
+  if (SOUNDS_ON) {
     pinMode(BUZZER, OUTPUT);
   }
   //LEDS
@@ -116,17 +122,15 @@ void setup() {
     leds[i] = CRGB::Black;
     board[i] = 0;
   }
-  for (int i = 0; i < NUM_SENSORS; i++) {
-    IR_triggered_round[i] = 0;
-  }
+  clearIR();
   FastLED.show();
   currentTime = millis();
-  play();
+  take5();
 }
 
 void loop() {
   currentTime = millis();
-  //Blink Animation to indicate currentPlayer
+
   if (playState == PLAY) {
     if (currentTime - playBlinkTimer > PLAY_BLINK_DELAY) {
       if (playBlinkColor == NEUTRAL_COLOR) {
@@ -136,19 +140,21 @@ void loop() {
       }
       playBlinkTimer = currentTime;
     }
+
     if (currentTime - turnTimer > TURN_DELAY) {
       missedShot();
       turnTimer = currentTime;
     }
+
     if (detectTriggers() || digitalRead(VIBRATION_SENSOR)) {
       shotDetect();
     }
+
   } else if (playState == SHOT_DETECT) {
     if (detectTriggers()) {
-      // Serial.print("2nd beam after ");
-      // Serial.print(currentTime - shotDetectTimer);
-      // Serial.println("ms");
+      // record additional beam breaks
     }
+
     if (shotDetectTimer && currentTime - shotDetectTimer > SHOT_DETECT_DELAY) {
       if (resolveHole()) {
         madeShot();
@@ -157,17 +163,22 @@ void loop() {
       }
       shotDetectTimer = 0;
     }
+
   } else if (playState == MADE_SHOT) {
     if (currentTime - madeShotTimer > MADE_SHOT_DELAY) {
       if (checkWin()) {
         winning();
+      } else if (blockedIR() && turn != ROUND_LENGTH) {
+        clearBoard();
       } else {
         play();
       }
+
       madeShotHole = INVALID;
       madeShotTimer = 0;
       madeShotBlinkTimer = 0;
       madeShotBlinkColor = NEUTRAL_COLOR;
+
     } else if (currentTime - madeShotBlinkTimer > MADE_SHOT_BLINK_DELAY) {
       if (madeShotBlinkColor == NEUTRAL_COLOR) {
         madeShotBlinkColor = currentPlayer == 'x' ? X_COLOR : O_COLOR;
@@ -176,6 +187,7 @@ void loop() {
       }
       madeShotBlinkTimer = currentTime;
     }
+
   } else if (playState == MISSED_SHOT) {
     if (currentTime - missedShotTimer > MISSED_SHOT_DELAY) {
       play();
@@ -183,6 +195,7 @@ void loop() {
       missedShotBlinkColor = missedShotBlinkColor == NEUTRAL_COLOR ? CRGB::Black : NEUTRAL_COLOR;
       missedShotBlinkTimer = currentTime;
     }
+
   } else if (playState == NEW_ROUND) {
     if (currentTime - newRoundTimer > NEW_ROUND_DELAY) {
       play();
@@ -190,6 +203,7 @@ void loop() {
       newRoundBlinkStage = (newRoundBlinkStage + 1) % NEW_ROUND_STAGES;
       newRoundBlinkTimer = currentTime;
     }
+
   } else if (playState == WINNING) {
     if (currentTime - winningTimer > WINNING_DELAY) {
       winningTimer = 0;
@@ -205,7 +219,23 @@ void loop() {
       }
       winningBlinkTimer = currentTime;
     }
+
+  } else if (playState == CLEAR_BOARD) {
+    if (!blockedIR()) {
+      delay(1000);
+      FastLED.setBrightness(100);
+      take5();
+    }
+
+  } else if (playState == TAKE_5) {
+    if (currentTime - take5Timer > TAKE_5_DELAY) {
+      play();
+    } else if (currentTime - newRoundBlinkTimer > NEW_ROUND_STAGE_DELAY) {
+      newRoundBlinkStage = (newRoundBlinkStage + 1) % NEW_ROUND_STAGES;
+      newRoundBlinkTimer = currentTime;
+    }
   }
+
   renderBoard();
   FastLED.show();
 }
@@ -215,7 +245,7 @@ void resetBoard() {
     board[i] = 0;
     leds[i] = 0;
   }
-  turn = ROUND_LENGTH-1;
+  turn = ROUND_LENGTH - 1;
 }
 
 bool detectTriggers() {
@@ -234,14 +264,11 @@ bool detectTriggers() {
 }
 
 void play() {
-  for (int i = 0; i < NUM_SENSORS; i++) {
-    IR_triggered_round[i] = 0;
-  }
-
-  if(turn!= ROUND_LENGTH){
+  clearIR();
+  if (turn != ROUND_LENGTH) {
     currentPlayer = currentPlayer == 'x' ? 'o' : 'x';
   }
-    playBlinkColor = currentPlayer == 'x' ? X_COLOR : O_COLOR;
+  playBlinkColor = currentPlayer == 'x' ? X_COLOR : O_COLOR;
   playBlinkTimer = currentTime;
 
   turnTimer = currentTime;
@@ -287,6 +314,17 @@ void winning() {
   playState = WINNING;
 }
 
+void clearBoard() {
+  playState = CLEAR_BOARD;
+}
+
+void take5() {
+  take5Timer = currentTime;
+  newRoundBlinkTimer = currentTime;
+  newRoundBlinkStage = 0;
+  playState = TAKE_5;
+}
+
 void renderBoard() {
   // hole -> LED mapping
   for (int i = 0; i < NUM_LEDS; i++) {
@@ -317,13 +355,16 @@ void renderBoard() {
         leds[i] = CRGB::Black;
       }
     }
-  } else if (playState == NEW_ROUND) {
+  } else if (playState == NEW_ROUND || playState == TAKE_5) {
     byte led1 = newRoundBlinkStage == 0 ? 8 : newRoundBlinkStage - 1;
     byte led2 = newRoundBlinkStage;
     byte led3 = newRoundBlinkStage == 8 ? 0 : newRoundBlinkStage + 1;
     leds[ledMap[led1]] = CRGB::Black;
     leds[ledMap[led2]] = CRGB::Black;
     leds[ledMap[led3]] = CRGB::Black;
+  } else if (playState == CLEAR_BOARD) {
+    byte brightness = beatsin8(45, 15, 100);
+    FastLED.setBrightness(brightness);
   }
 }
 
@@ -392,6 +433,21 @@ bool checkWin() {
   }
   for (int i = 0; i < 3; i++) {
     if (winningLine[i] != INVALID) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void clearIR() {
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    IR_triggered_round[i] = 0;
+  }
+}
+
+bool blockedIR() {
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    if (!digitalRead(irReceivers[i])) {
       return true;
     }
   }
