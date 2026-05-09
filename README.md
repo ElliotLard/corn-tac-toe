@@ -90,9 +90,34 @@ The game uses `millis()`-based timing instead of long blocking delays. This allo
 
 Example pattern:
 
-```cpp
-currentTime = millis();
+    currentTime = millis();
 
-if (currentTime - timer > interval) {
-    // update animation or change state
-}
+    if (currentTime - timer > interval) {
+        // update animation or change state
+    }
+
+---
+
+## 🎨 Code Highlights
+
+- Finite state machine structure for clean gameplay flow
+- Edge-triggered IR sensor handling to reduce repeated triggers
+- Hole resolution using row/column beam combinations
+- LED rendering separated into a dedicated `renderBoard()` function
+- State-based animation overlays
+- Efficient win detection using center and corner anchor checks
+
+---
+
+## 🙌 Team
+
+- Elliot Lard
+- Baz McIntyre
+- Landon Aucoin
+- James Cowan
+
+---
+
+## 📜 License
+
+This project is licensed under the Apache-2.0 License.
