@@ -1,75 +1,98 @@
-# Corn Tac Toe 🎯
+# Corn-Tac-Toe 🎯
 
-A physical tic-tac-toe game played with cornhole bags, featuring LED feedback, turn-based logic, and animated win effects.
+A physical tic-tac-toe game played with cornhole bags, featuring IR beam sensing, LED feedback, turn-based game logic, and animated win effects.
+
+Corn-Tac-Toe was awarded **3rd place overall** in the Louisiana Tech Freshman Design Competition.
+
+---
 
 ## 🎮 Overview
 
-Corn Tac Toe is a hybrid of cornhole and tic-tac-toe. Players take turns tossing bags onto a 3x3 board, trying to claim spaces and get three in a row.
+Corn-Tac-Toe combines the gameplay of tic-tac-toe with the physical challenge of cornhole. Players take turns tossing bags at a 3×3 board, trying to claim spaces and get three in a row.
 
-The board uses sensors to detect hits and LED strips to display game state in real time.
+The board uses IR break-beam sensors to detect which hole a bag passes through, then updates addressable LEDs to show player ownership, turn status, missed shots, round transitions, and winning animations.
 
 ---
 
 ## ✨ Features
 
-- 🔴🔵 Turn-based gameplay (Red vs Blue)
+- 🔴🔵 Turn-based gameplay: Red vs. Blue
+- 🎯 Sensor-based input detection
 - ⏱ Turn timeout handling
-- 💡 LED board with:
-  - Player-indicating blinking
-  - Turn-switch animation
-  - Multi-phase win animation:
-    - Winning tiles flash
-    - Full-board celebration
-    - Final highlight state
-- 🎯 Sensor-based input detection (no buttons required)
-- ⚡ Fully non-blocking (millis-based timing)
+- 💡 Addressable LED feedback for game state
+- 🏆 Animated win sequence
+- ⚡ Non-blocking timing using `millis()`
+- 🧠 Finite state machine for organized game flow
+- 🔊 Optional sound feedback with buzzer tones
 
 ---
 
 ## 🧰 Hardware
 
 - Arduino Uno
-- WS2812 LED strips (3 strips × 3 LEDs)
-- 9 sensors (mechanical switches)
-- Vibration sensor (for miss detection)
-- Speaker (for sound effects)
+- WS2812B addressable LED strip
+- 5 IR break-beam sensor pairs
+- Vibration sensor for missed-shot / board-impact detection
+- Buzzer or speaker for sound effects
+- Custom 3×3 wooden Corn-Tac-Toe board
+- External power supply for LEDs
 
 ---
 
 ## 🧠 How It Works
 
-- Each board position has a sensor
-- When a bag lands, the corresponding tile is claimed
-- The board updates LEDs instantly
-- Turns alternate automatically
-- A win triggers a custom animation sequence
+Corn-Tac-Toe uses a combination of horizontal and vertical IR beams to determine which hole a bag passes through.
+
+Instead of placing a separate sensor inside every hole, the board uses:
+
+- 3 horizontal row beams
+- 2 vertical column beams
+- Left-column inference when no vertical beam is broken
+
+When a bag breaks the beams, the Arduino records the triggered sensors, resolves the hole location, updates the board state, and changes the LEDs to match the current game state.
 
 ---
 
-## 🎨 Game Logic Highlights
-- Efficient win detection using center/corner anchors
-- Edge-triggered input handling (prevents multi-trigger spam)
-- State-based animation system:
-- Normal play
-- Turn switch animation
-- Win animation
+## 💡 LED Feedback
+
+The LEDs provide real-time feedback to players:
+
+- **Red LEDs** represent spaces claimed by the X player
+- **Blue LEDs** represent spaces claimed by the O player
+- **White / blinking LEDs** indicate available spaces and current turn
+- **Made shots** blink the scored hole
+- **Missed shots** briefly flash the board dark
+- **Winning sequences** blink the winning line, then the full board
+- **Idle states** use simple animations during pauses and round transitions
 
 ---
 
-## 🔮 Future Improvements
-- 🔊 Sound effects (turn + win)
-- 🧠 Smarter miss detection
-- 🎨 Additional animations
-- 📱 Score tracking / display
-- 🛠 Adjustable game modes
+## 🔁 Game Logic
 
-## 🙌 Team
-- Elliot Lard
-- Baz McIntyre
-- Landon Aucoin
-- James Cowan
+The program is organized around a finite state machine with states such as:
 
-## 📜 License
+- `TAKE_5`
+- `PLAY`
+- `SHOT_DETECT`
+- `MADE_SHOT`
+- `MISSED_SHOT`
+- `WINNING`
+- `NEW_ROUND`
+- `CLEAR_BOARD`
 
-- This project is licensed under the Apache-2.0 license.
+This keeps gameplay, sensor detection, LED animation, missed-shot handling, and win behavior organized into clear state-based sections.
 
+---
+
+## ⏱ Non-Blocking Timing
+
+The game uses `millis()`-based timing instead of long blocking delays. This allows the Arduino to continue monitoring sensors while LED animations, turn timers, and feedback effects are running.
+
+Example pattern:
+
+```cpp
+currentTime = millis();
+
+if (currentTime - timer > interval) {
+    // update animation or change state
+}
