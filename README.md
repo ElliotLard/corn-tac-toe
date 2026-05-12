@@ -12,6 +12,9 @@ Corn-Tac-Toe combines the gameplay of tic-tac-toe with the physical challenge of
 
 The board uses IR break-beam sensors to detect which hole a bag passes through, then updates addressable LEDs to show player ownership, turn status, missed shots, round transitions, and winning animations.
 
+<img width="384" height="512" alt="A57FE72C-CCD4-4E38-B704-6069FEA27784_1_105_c" src="https://github.com/user-attachments/assets/fd039e2f-1371-47c7-93b2-d7d28f770bc3" /> <img width="384" height="512" alt="56FE011F-5824-40FD-BFBF-8ABB8083F799_1_105_c" src="https://github.com/user-attachments/assets/7b696980-259c-4505-a4dc-e257f910ba20" />
+
+
 ---
 
 ## ✨ Features
@@ -111,12 +114,14 @@ Example pattern:
 
 ## 🙌 Team
 
+
 - Elliot Lard
 - Baz McIntyre
 - Landon Aucoin
 - James Cowan
 
 ---
+
 
 ## 📜 License
 
